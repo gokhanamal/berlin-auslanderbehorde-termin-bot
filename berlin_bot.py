@@ -2,12 +2,12 @@ import time
 import os
 import logging
 from platform import system
+import datetime
 
 from selenium import webdriver
 from selenium.webdriver.common.keys import Keys
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import Select
-
 
 system = system()
 
@@ -40,12 +40,13 @@ class BerlinBot:
     def __init__(self):
         self.wait_time = 20
         self._sound_file = os.path.join(os.getcwd(), "alarm.wav")
-        self._error_message = """Für die gewählte Dienstleistung sind aktuell keine Termine frei! Bitte"""
+        self._error_message = """There are currently no dates available for the selected service! Please try again later."""
+        self._token_error_message = "A general error occurred. Please try again later."
 
     @staticmethod
     def enter_start_page(driver: webdriver.Chrome):
         logging.info("Visit start page")
-        driver.get("https://otv.verwalt-berlin.de/ams/TerminBuchen")
+        driver.get("https://otv.verwalt-berlin.de/ams/TerminBuchen?lang=en")
         driver.find_element(By.XPATH, '//*[@id="mainForm"]/div/div/div/div/div/div/div/div/div/div[1]/div[1]/div[2]/a').click()
         time.sleep(5)
 
@@ -62,38 +63,33 @@ class BerlinBot:
         logging.info("Fill out form")
         # select china
         s = Select(driver.find_element(By.ID, 'xi-sel-400'))
-        s.select_by_visible_text("China")
+        s.select_by_visible_text("Turkey")
         # eine person
         s = Select(driver.find_element(By.ID, 'xi-sel-422'))
-        s.select_by_visible_text("eine Person")
+        s.select_by_visible_text("one person")
         # no family
         s = Select(driver.find_element(By.ID, 'xi-sel-427' ))
-        s.select_by_visible_text("nein")
+        s.select_by_visible_text("no")
         time.sleep(5)
 
-        # extend stay
-        driver.find_element(By.XPATH, '//*[@id="xi-div-30"]/div[2]/label/p').click()
+
+        driver.find_element(By.CSS_SELECTOR, '.kachel-163-0-1 p').click()
         time.sleep(2)
 
-        # click on study group
-        driver.find_element(By.XPATH, '//*[@id="inner-479-0-2"]/div/div[1]/label/p').click()
+        driver.find_element(By.CSS_SELECTOR, '.accordion-163-0-1-1 > label').click()
         time.sleep(2)
 
-        # b/c of stufy
-        driver.find_element(By.XPATH, '//*[@id="inner-479-0-2"]/div/div[2]/div/div[5]/label').click()
+        driver.find_element(By.CSS_SELECTOR, '.level3:nth-child(6) > label').click()
         time.sleep(4)
 
-        # submit form
         driver.find_element(By.ID, 'applicationForm:managedForm:proceed').click()
-        time.sleep(10)
+        time.sleep(20)
     
     def _success(self):
         logging.info("!!!SUCCESS - do not close the window!!!!")
         while True:
             self._play_sound_osx(self._sound_file)
-            time.sleep(15)
-        
-        # todo play something and block the browser
+            time.sleep(20)
 
 
     def run_once(self):
@@ -103,16 +99,20 @@ class BerlinBot:
             self.enter_form(driver)
 
             # retry submit
-            for _ in range(10):
+            for _ in range(90):
+
                 if not self._error_message in driver.page_source:
                     self._success()
+
+                if self._token_error_message in driver.page_source:
+                    logging.info("Expired Token...")
+                    break
+
                 logging.info("Retry submitting form")
                 driver.find_element(By.ID, 'applicationForm:managedForm:proceed').click()
-                time.sleep(self.wait_time)
+                time.sleep(20)
 
     def run_loop(self):
-        # play sound to check if it works
-        self._play_sound_osx(self._sound_file)
         while True:
             logging.info("One more round")
             self.run_once()
