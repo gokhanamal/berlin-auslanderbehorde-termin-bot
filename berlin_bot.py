@@ -38,10 +38,10 @@ class WebDriver:
 
 class BerlinBot:
     def __init__(self):
-        self.wait_time = 20
+        self.wait_time = 40
         self._sound_file = os.path.join(os.getcwd(), "alarm.wav")
-        self._error_message = """There are currently no dates available for the selected service! Please try again later."""
-        self._token_error_message = "A general error occurred. Please try again later."
+        self._error_message = "There are currently no dates available for the selected service! Please try again later."
+        self._token_error_message = "Vielen Dank für die Nutzung der Landesamt für Einwanderung - Terminvereinbarung! Ihre Sitzung wurde beendet."
 
     @staticmethod
     def enter_start_page(driver: webdriver.Chrome):
@@ -50,16 +50,14 @@ class BerlinBot:
         driver.find_element(By.XPATH, '//*[@id="mainForm"]/div/div/div/div/div/div/div/div/div/div[1]/div[1]/div[2]/a').click()
         time.sleep(5)
 
-    @staticmethod
-    def tick_off_some_bullshit(driver: webdriver.Chrome):
+    def tick_off_some_bullshit(self, driver: webdriver.Chrome):
         logging.info("Ticking off agreement")
         driver.find_element(By.XPATH, '//*[@id="xi-div-1"]/div[4]/label[2]/p').click()
         time.sleep(1)
         driver.find_element(By.ID, 'applicationForm:managedForm:proceed').click()
-        time.sleep(5)
+        time.sleep(40)
 
-    @staticmethod
-    def enter_form(driver: webdriver.Chrome):
+    def enter_form(self, driver: webdriver.Chrome):
         logging.info("Fill out form")
         # select china
         s = Select(driver.find_element(By.ID, 'xi-sel-400'))
@@ -80,16 +78,19 @@ class BerlinBot:
         time.sleep(2)
 
         driver.find_element(By.CSS_SELECTOR, '.level3:nth-child(6) > label').click()
-        time.sleep(4)
+        time.sleep(10)
 
         driver.find_element(By.ID, 'applicationForm:managedForm:proceed').click()
-        time.sleep(20)
+        time.sleep(self.wait_time)
     
-    def _success(self):
+    def _success(self, driver: webdriver.Chrome):
         logging.info("!!!SUCCESS - do not close the window!!!!")
         while True:
             self._play_sound_osx(self._sound_file)
             time.sleep(20)
+            if self._error_message in driver.page_source:
+                break
+
 
 
     def run_once(self):
@@ -100,17 +101,16 @@ class BerlinBot:
 
             # retry submit
             for _ in range(90):
-
-                if not self._error_message in driver.page_source:
-                    self._success()
-
                 if self._token_error_message in driver.page_source:
                     logging.info("Expired Token...")
                     break
+        
+                if not self._error_message in driver.page_source:
+                    self._success(driver)
 
                 logging.info("Retry submitting form")
                 driver.find_element(By.ID, 'applicationForm:managedForm:proceed').click()
-                time.sleep(20)
+                time.sleep(self.wait_time)
 
     def run_loop(self):
         while True:
